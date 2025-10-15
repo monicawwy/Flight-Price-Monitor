@@ -2,9 +2,8 @@ name: Flight Price Monitor
 
 on:
   schedule:
-    # 每日香港時間早上 9 點執行（UTC 1:00）
     - cron: '0 1 * * *'
-  workflow_dispatch:  # 允許手動執行
+  workflow_dispatch:
 
 jobs:
   search-flights:
@@ -29,11 +28,20 @@ jobs:
         AMADEUS_API_SECRET: ${{ secrets.AMADEUS_API_SECRET }}
       run: |
         python amadeus_flight_search.py
+      continue-on-error: true
     
     - name: Commit results
       run: |
         git config --global user.name 'GitHub Actions Bot'
         git config --global user.email 'actions@github.com'
-        git add cheap_flights.csv
-        git diff --quiet && git diff --staged --quiet || git commit -m "Update flight data - $(date +'%Y-%m-%d')"
+        git add -A
+        
+        # 檢查係咪有改動
+        if git diff --staged --quiet; then
+          echo "✓ 冇新數據需要 commit"
+          exit 0
+        fi
+        
+        # 有改動就 commit 同 push
+        git commit -m "Update flight data - $(date +'%Y-%m-%d %H:%M:%S')"
         git push
